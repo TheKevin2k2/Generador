@@ -22,8 +22,25 @@ with st.sidebar:
     f = st.file_uploader("Subir PDF", type="pdf")
     z = st.slider("Zoom", 0.5, 3.0, 1.5)
     st.divider()
+    
+    st.subheader("🗑️ Herramientas de Borrado")
+    if st.button("⬅️ Deshacer Último Tramo"):
+        if not st.session_state.db.empty:
+            st.session_state.db = st.session_state.db.drop(st.session_state.db.index[-1])
+            st.toast("Último tramo eliminado")
+            st.rerun()
+
+    if st.button("🗑️ Limpiar Puntos Rojos"):
+        st.session_state.pts = []
+        st.rerun()
+
+    if st.button("🔴 BORRAR TODO EL EXCEL"):
+        st.session_state.db = pd.DataFrame(columns=['Eje', 'Largo', 'Alto', 'Total'])
+        st.rerun()
+
+    st.divider()
     dist_real = st.number_input("1. Valor de Cota (m)", value=1.0)
-    if st.button("2. 📏 CALIBRAR CON PUNTOS"):
+    if st.button("2. 📏 CALIBRAR"):
         if len(st.session_state.pts) == 2:
             p1, p2 = st.session_state.pts
             px = ((p2['x']-p1['x'])**2 + (p2['y']-p1['y'])**2)**0.5
@@ -31,8 +48,8 @@ with st.sidebar:
             st.success("Escala ajustada")
             st.session_state.pts = []
             st.rerun()
-    st.divider()
-    eje = st.text_input("Eje", "Eje 1")
+
+    eje = st.text_input("Nombre del Eje", "Eje 1")
     alt = st.number_input("Altura (m)", value=2.5)
 
 if f:
@@ -44,7 +61,7 @@ if f:
 
     c1, c2 = st.columns([2, 1])
     with c1:
-        out = streamlit_image_coordinates(dib, key="v_final")
+        out = streamlit_image_coordinates(dib, key="v_final_plus")
         if out and (not st.session_state.pts or out != st.session_state.pts[-1]):
             if len(st.session_state.pts) >= 2: st.session_state.pts = [out]
             else: st.session_state.pts.append(out)
@@ -54,7 +71,7 @@ if f:
             p1, p2 = st.session_state.pts
             dpx = ((p2['x']-p1['x'])**2 + (p2['y']-p1['y'])**2)**0.5
             m = round(dpx * st.session_state.sc, 2)
-            st.write(f"### Medida: {m} m")
+            st.write(f"### Medida detectada: {m} m")
             if st.button("💾 GUARDAR TRAMO"):
                 row = pd.DataFrame([{'Eje': eje, 'Largo': m, 'Alto': alt, 'Total': round(m*alt, 2)}])
                 st.session_state.db = pd.concat([st.session_state.db, row], ignore_index=True)
@@ -62,7 +79,8 @@ if f:
                 st.rerun()
 
     with c2:
+        st.write("### Tabla de Resultados")
         st.dataframe(st.session_state.db, use_container_width=True)
         if not st.session_state.db.empty:
             csv = st.session_state.db.to_csv(index=False).encode('utf-8-sig')
-            st.download_button("📥 EXCEL", csv, "medidas.csv", "text/csv")
+            st.download_button("📥 DESCARGAR EXCEL", csv, "medidas.csv", "text/csv")
